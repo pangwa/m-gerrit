@@ -208,11 +208,12 @@
     ("c" "Review -1" p-magit-gerrit-score-minus-1)
     ("d" "Review -2" p-magit-gerrit-score-minus-2)
     ("p" "Show patchset" p-magit-gerrit-view-patchset-diff)
+    ("s" "Submit" p-magit-gerrit-submit-review)
     ]])
 
 (defun p-magit-gerrit-score-2 ()
   (interactive)
-  (p-magit-gerrit-code-review "2"))
+  (p-magit-gerrit-code-review "2" "看上去不错"))
 
 (defun p-magit-gerrit-score-1 ()
   (interactive)
@@ -226,19 +227,38 @@
   (interactive)
   (p-magit-gerrit-code-review "-2"))
 
-(defun p-magit-gerrit-code-review (score)
+(defun p-magit-gerrit-code-review (score &optional msg)
   "Perform a Gerrit Code Review"
   (let ((rev (cdr-safe (assoc
 		                    'revision
 		                    (cdr-safe (assoc 'currentPatchSet
 				                                 (p-magit-gerrit-review-at-point))))))
 	      (prj (p-magit-gerrit-get-project)))
-    (p-gerrit-code-review prj rev score)
+    (p-gerrit-code-review prj rev score msg)
     (magit-refresh)))
 
+(defun p-gerrit-ssh-cmd (cmd &rest args)
+  (message (format "exec command: %s, %S" cmd args))
+  (apply #'call-process
+	       "ssh" nil nil nil
+	       (split-string (apply #'gerrit-command cmd args))))
+
+(defun gerrit-command (cmd &rest args)
+  (let ((gcmd (concat
+	             "-x -p 29418 "
+	             (or p-magit-gerrit-ssh-creds
+		               (error "`p-magit-gerrit-ssh-creds' must be set!"))
+	             " "
+	             "gerrit "
+	             cmd
+	             " "
+	             (mapconcat 'identity args " "))))
+    ;; (message (format "Using cmd: %s" gcmd))
+    gcmd))
+
 (defun p-gerrit-code-review (prj rev score &optional msg)
-  (gerrit-ssh-cmd "review" "--project" prj "--code-review" score
-		              (if msg msg "") rev))
+  (p-gerrit-ssh-cmd "review" "--project" prj "--code-review" score
+		              (if msg (format "--message %s" msg) "") rev))
 
 (defun p-magit-gerrit-review-at-point ()
   (get-text-property (point) 'p-magit-gerrit-jobj))
@@ -314,6 +334,20 @@
   (while (and magit-this-process
 	            (eq (process-status magit-this-process) 'run))
     (sleep-for 0.005)))
+
+(defun p-magit-gerrit-submit-review ()
+  "Submit the code review at point"
+  (interactive)
+  (p-gerrit-ssh-cmd "review"
+                    (cdr-safe (assoc
+                               'revision
+                               (cdr-safe (assoc 'currentPatchSet
+                                                (p-magit-gerrit-review-at-point)))))
+                    "--project"
+                    (p-magit-gerrit-get-project)
+                    "--submit"
+                    nil)
+  (magit-fetch-from-upstream ""))
 
 (transient-append-suffix 'magit-dispatch "z"
   '("C" "Code Review" p-magit-gerrit-review))
