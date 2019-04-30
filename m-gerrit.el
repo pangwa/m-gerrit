@@ -78,7 +78,7 @@
     (if (and beg end)
 	(delete-region beg end))
     (when (and num subj owner-name)
-      (magit-insert-section (section subj)
+      (magit-insert-section (gerrit subj)
 	(insert (propertize
 		 (p-magit-gerrit-pretty-print-review num subj owner-name isdraft)
 		 'p-magit-gerrit-jobj
@@ -129,7 +129,7 @@
 	       (codereview (string= type "Code-Review"))
 	       (score (cdr-safe (assoc 'value approval))))
 
-    (magit-insert-section (section approval)
+    (magit-insert-section (gerrit approval)
       (insert (p-magit-gerrit-pretty-print-reviewer approvname approvemail
 						                                       (and codereview score)
 						                                       (and verified score))
@@ -151,7 +151,7 @@
 (defun p-magit-gerrit-section (section title washer &rest args)
   (let ((magit-git-executable "ssh")
 	      (magit-git-global-arguments nil))
-    (magit-insert-section (section title)
+    (magit-insert-section (gerrit title)
       (message (format "insert head %s, args: %S" title args))
       (magit-insert-heading title)
       (magit-git-wash washer (split-string (car args)))
@@ -162,7 +162,7 @@
 
 (defun p-magit-insert-gerrit-reviews ()
   (p-magit-gerrit-section 'p-gerrit-reviews
-			                   "PReviews:" 'p-magit-gerrit-wash-reviews
+			                   "Reviews:" 'p-magit-gerrit-wash-reviews
 			                   (p-gerrit-query (p-magit-gerrit-get-project))))
 
 (defcustom p-magit-gerrit-popup-prefix (kbd "R")
@@ -351,6 +351,16 @@
 
 (transient-append-suffix 'magit-dispatch "z"
   '("C" "Code Review" p-magit-gerrit-review))
+
+(defvar magit-gerrit-section-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap magit-visit-thing]  'p-magit-gerrit-view-patchset-diff)
+    (define-key map "A" 'p-magit-gerrit-score-2)
+    (define-key map "B" 'p-magit-gerrit-score-1)
+    (define-key map "C" 'p-magit-gerrit-score-minus-1)
+    (define-key map "D" 'p-magit-gerrit-score-minus-2)
+    map)
+  "Keymap for `gerrit' sections.")
 
 (defun p-magit-gerrit-check-enable ()
   (let ((remote-url (p-magit-gerrit-get-remote-url)))
