@@ -350,7 +350,7 @@
   (magit-fetch-from-upstream ""))
 
 (transient-append-suffix 'magit-dispatch "z"
-  '("C" "Code Review" p-magit-gerrit-review))
+  '("R" "Code Review" p-magit-gerrit-review))
 
 (defvar magit-gerrit-section-map
   (let ((map (make-sparse-keymap)))
